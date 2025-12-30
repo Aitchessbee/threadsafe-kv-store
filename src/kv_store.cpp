@@ -3,12 +3,12 @@
 
 namespace kv_store {
     void KVStore::put(const std::string &key, const std::string &value) {
-        std::lock_guard<std::mutex> lock(mutex_);
+        std::unique_lock<std::shared_mutex> lock(mutex_);
         store_[key] = value;
     }
 
     std::pair<bool, std::string> KVStore::get(const std::string &key) const {
-        std::lock_guard<std::mutex> lock(mutex_);
+        std::shared_lock<std::shared_mutex> lock(mutex_);
         auto it = store_.find(key);
 
         if(it == store_.end()) {
@@ -19,7 +19,7 @@ namespace kv_store {
     }
 
     void KVStore::erase(const std::string &key) {
-        std::lock_guard<std::mutex> lock(mutex_);
+        std::unique_lock<std::shared_mutex> lock(mutex_);
         
         store_.erase(key);
     }

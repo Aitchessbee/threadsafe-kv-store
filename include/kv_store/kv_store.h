@@ -2,7 +2,7 @@
 
 #include <string>
 #include <unordered_map>
-#include <mutex>
+#include <shared_mutex>
 #include <utility>
 
 namespace kv_store {
@@ -15,7 +15,7 @@ public:
 
 private:
     std::unordered_map<std::string, std::string> store_;
-    mutable std::mutex mutex_;
+    mutable std::shared_mutex mutex_;
 };
 
 }
