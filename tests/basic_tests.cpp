@@ -2,9 +2,10 @@
 #include <cassert>
 #include <iostream>
 
+using namespace kv_store;
 
 int main() {
-    kv_store::KVStore store;
+    KVStore store;
 
     // Test 1: put() and get()
     store.put("key1", "value1");
