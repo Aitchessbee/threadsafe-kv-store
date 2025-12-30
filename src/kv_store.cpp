@@ -1,5 +1,5 @@
 #include <string>
-#include "kv_store/kv_store.h"
+#include "../include/kv_store/kv_store.h"
 
 namespace kv_store {
     void KVStore::put(const std::string &key, const std::string &value) {

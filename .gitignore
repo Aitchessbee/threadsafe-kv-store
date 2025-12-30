@@ -1,2 +1,50 @@
+# =========================
+# Build artifacts (CMake)
+# =========================
 build/
-.vscode
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+CTestTestfile.cmake
+Makefile
+cmake_install.cmake
+*.cmake
+
+# =========================
+# Compiled objects & binaries
+# =========================
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.exe
+basic_tests
+
+# =========================
+# macOS system files
+# =========================
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# =========================
+# Editor / IDE files
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# Debugging / sanitizer output
+# =========================
+*.dSYM/
+*.log
+
+# =========================
+# Coverage / profiling
+# =========================
+*.gcda
+*.gcno
+*.gcov
