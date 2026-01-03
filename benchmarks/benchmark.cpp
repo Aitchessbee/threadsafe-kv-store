@@ -1,10 +1,10 @@
-#include "../include/kv_store/kv_store.h"
-
 #include <chrono>
 #include <iostream>
 #include <string>
 #include <thread>
 #include <vector>
+
+#include "../include/kv_store/kv_store.h"
 
 using namespace kv_store;
 using Clock = std::chrono::high_resolution_clock;
@@ -19,10 +19,7 @@ void benchmark_put(KVStore& store, int num_threads, int ops_per_thread) {
 
     auto writer = [&](int tid) {
         for (int i = 0; i < ops_per_thread; ++i) {
-            store.put(
-                "key_" + std::to_string(tid) + "_" + std::to_string(i),
-                "value_" + std::to_string(i)
-            );
+            store.put("key_" + std::to_string(tid) + "_" + std::to_string(i), "value_" + std::to_string(i));
         }
     };
 
@@ -34,16 +31,12 @@ void benchmark_put(KVStore& store, int num_threads, int ops_per_thread) {
     for (auto& t : threads) t.join();
 
     auto end = Clock::now();
-    auto duration =
-        std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
     size_t total_ops = static_cast<size_t>(num_threads) * ops_per_thread;
 
-    std::cout << "[PUT]   Threads=" << num_threads
-              << " Ops=" << total_ops
-              << " Time=" << duration.count() << "ms"
-              << " Throughput=" << ops_per_sec(total_ops, duration)
-              << " ops/sec\n";
+    std::cout << "[PUT]   Threads=" << num_threads << " Ops=" << total_ops << " Time=" << duration.count() << "ms"
+              << " Throughput=" << ops_per_sec(total_ops, duration) << " ops/sec\n";
 }
 
 void benchmark_get(KVStore& store, int num_threads, int ops_per_thread) {
@@ -51,9 +44,7 @@ void benchmark_get(KVStore& store, int num_threads, int ops_per_thread) {
 
     auto reader = [&](int tid) {
         for (int i = 0; i < ops_per_thread; ++i) {
-            store.get(
-                "key_" + std::to_string(tid) + "_" + std::to_string(i)
-            );
+            store.get("key_" + std::to_string(tid) + "_" + std::to_string(i));
         }
     };
 
@@ -65,64 +56,44 @@ void benchmark_get(KVStore& store, int num_threads, int ops_per_thread) {
     for (auto& t : threads) t.join();
 
     auto end = Clock::now();
-    auto duration =
-        std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
     size_t total_ops = static_cast<size_t>(num_threads) * ops_per_thread;
 
-    std::cout << "[GET]   Threads=" << num_threads
-              << " Ops=" << total_ops
-              << " Time=" << duration.count() << "ms"
-              << " Throughput=" << ops_per_sec(total_ops, duration)
-              << " ops/sec\n";
+    std::cout << "[GET]   Threads=" << num_threads << " Ops=" << total_ops << " Time=" << duration.count() << "ms"
+              << " Throughput=" << ops_per_sec(total_ops, duration) << " ops/sec\n";
 }
 
-void benchmark_mixed(KVStore& store,
-                     int num_readers,
-                     int num_writers,
-                     int ops_per_thread) {
+void benchmark_mixed(KVStore& store, int num_readers, int num_writers, int ops_per_thread) {
     auto start = Clock::now();
 
     auto reader = [&](int tid) {
         for (int i = 0; i < ops_per_thread; ++i) {
-            store.get(
-                "key_" + std::to_string(tid) + "_" + std::to_string(i)
-            );
+            store.get("key_" + std::to_string(tid) + "_" + std::to_string(i));
         }
     };
 
     auto writer = [&](int tid) {
         for (int i = 0; i < ops_per_thread; ++i) {
-            store.put(
-                "mixed_key_" + std::to_string(tid) + "_" + std::to_string(i),
-                "value"
-            );
+            store.put("mixed_key_" + std::to_string(tid) + "_" + std::to_string(i), "value");
         }
     };
 
     std::vector<std::thread> threads;
 
-    for (int i = 0; i < num_readers; ++i)
-        threads.emplace_back(reader, i);
+    for (int i = 0; i < num_readers; ++i) threads.emplace_back(reader, i);
 
-    for (int i = 0; i < num_writers; ++i)
-        threads.emplace_back(writer, i);
+    for (int i = 0; i < num_writers; ++i) threads.emplace_back(writer, i);
 
     for (auto& t : threads) t.join();
 
     auto end = Clock::now();
-    auto duration =
-        std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-    size_t total_ops =
-        static_cast<size_t>(num_readers + num_writers) * ops_per_thread;
+    size_t total_ops = static_cast<size_t>(num_readers + num_writers) * ops_per_thread;
 
-    std::cout << "[MIXED] Readers=" << num_readers
-              << " Writers=" << num_writers
-              << " Ops=" << total_ops
-              << " Time=" << duration.count() << "ms"
-              << " Throughput=" << ops_per_sec(total_ops, duration)
-              << " ops/sec\n";
+    std::cout << "[MIXED] Readers=" << num_readers << " Writers=" << num_writers << " Ops=" << total_ops << " Time=" << duration.count() << "ms"
+              << " Throughput=" << ops_per_sec(total_ops, duration) << " ops/sec\n";
 }
 
 int main() {
@@ -131,9 +102,7 @@ int main() {
     const int ops_per_thread = 100000;
 
     std::cout << "KVStore Benchmark\n";
-    std::cout << "Shards=" << shards
-              << " Threads=" << threads
-              << " Ops/thread=" << ops_per_thread << "\n\n";
+    std::cout << "Shards=" << shards << " Threads=" << threads << " Ops/thread=" << ops_per_thread << "\n\n";
 
     KVStore store(shards);
 

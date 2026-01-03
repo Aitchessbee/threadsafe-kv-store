@@ -1,6 +1,7 @@
-#include "../include/kv_store/kv_store.h"
 #include <cassert>
 #include <iostream>
+
+#include "../include/kv_store/kv_store.h"
 
 using namespace kv_store;
 

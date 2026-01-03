@@ -1,31 +1,27 @@
 #pragma once
 
+#include <chrono>
+#include <shared_mutex>
 #include <string>
 #include <unordered_map>
-#include <shared_mutex>
-#include <vector>
 #include <utility>
-#include <chrono>
+#include <vector>
 
 namespace kv_store {
 
 class KVStore {
-public:
+   public:
     explicit KVStore(size_t num_shards = 16);
 
     std::pair<bool, std::string> get(const std::string& key);
 
-    void put(const std::string& key,
-             const std::string& value,
-             std::chrono::steady_clock::time_point expire_at);
+    void put(const std::string& key, const std::string& value, std::chrono::steady_clock::time_point expire_at);
 
-    void put(const std::string& key,
-             const std::string& value,
-             std::chrono::seconds ttl);
+    void put(const std::string& key, const std::string& value, std::chrono::seconds ttl);
 
     void erase(const std::string& key);
 
-private:
+   private:
     struct ValueEntry {
         std::string value;
         std::chrono::steady_clock::time_point expire_at;
@@ -42,4 +38,4 @@ private:
     size_t getShardIndex(const std::string& key) const;
 };
 
-} // namespace kv_store
+}  // namespace kv_store

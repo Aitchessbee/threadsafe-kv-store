@@ -1,10 +1,10 @@
-#include "../include/kv_store/kv_store.h"
-
-#include <thread>
-#include <vector>
-#include <string>
 #include <cassert>
 #include <iostream>
+#include <string>
+#include <thread>
+#include <vector>
+
+#include "../include/kv_store/kv_store.h"
 
 using namespace kv_store;
 
@@ -17,8 +17,7 @@ void test_concurrent_put() {
 
     auto writer = [&](int thread_id) {
         for (int i = 0; i < writes_per_thread; ++i) {
-            store.put("key_" + std::to_string(i),
-                      "value_from_thread_" + std::to_string(thread_id));
+            store.put("key_" + std::to_string(i), "value_from_thread_" + std::to_string(thread_id));
         }
     };
 
