@@ -4,13 +4,15 @@
 #include <thread>
 #include <vector>
 
-#include "../include/kv_store/kv_store.h"
+#include "kv_store/eviction/eviction_types.h"
+#include "kv_store/kv_store.h"
 
 using namespace kv_store;
 using Clock = std::chrono::high_resolution_clock;
 
 double ops_per_sec(size_t ops, std::chrono::milliseconds duration) {
-    if (duration.count() == 0) return 0.0;
+    if (duration.count() == 0)
+        return 0.0;
     return static_cast<double>(ops) / (duration.count() / 1000.0);
 }
 
@@ -19,7 +21,7 @@ void benchmark_put(KVStore& store, int num_threads, int ops_per_thread) {
 
     auto writer = [&](int tid) {
         for (int i = 0; i < ops_per_thread; ++i) {
-            store.put("key_" + std::to_string(tid) + "_" + std::to_string(i), "value_" + std::to_string(i));
+            store.put("key_" + std::to_string(tid) + "_" + std::to_string(i), "value_" + std::to_string(i), std::chrono::seconds(0));
         }
     };
 
@@ -28,7 +30,8 @@ void benchmark_put(KVStore& store, int num_threads, int ops_per_thread) {
         threads.emplace_back(writer, i);
     }
 
-    for (auto& t : threads) t.join();
+    for (auto& t : threads)
+        t.join();
 
     auto end = Clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -53,7 +56,8 @@ void benchmark_get(KVStore& store, int num_threads, int ops_per_thread) {
         threads.emplace_back(reader, i);
     }
 
-    for (auto& t : threads) t.join();
+    for (auto& t : threads)
+        t.join();
 
     auto end = Clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -75,17 +79,19 @@ void benchmark_mixed(KVStore& store, int num_readers, int num_writers, int ops_p
 
     auto writer = [&](int tid) {
         for (int i = 0; i < ops_per_thread; ++i) {
-            store.put("mixed_key_" + std::to_string(tid) + "_" + std::to_string(i), "value");
+            store.put("mixed_key_" + std::to_string(tid) + "_" + std::to_string(i), "value", std::chrono::seconds(0));
         }
     };
 
     std::vector<std::thread> threads;
 
-    for (int i = 0; i < num_readers; ++i) threads.emplace_back(reader, i);
+    for (int i = 0; i < num_readers; ++i)
+        threads.emplace_back(reader, i);
+    for (int i = 0; i < num_writers; ++i)
+        threads.emplace_back(writer, i);
 
-    for (int i = 0; i < num_writers; ++i) threads.emplace_back(writer, i);
-
-    for (auto& t : threads) t.join();
+    for (auto& t : threads)
+        t.join();
 
     auto end = Clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -104,7 +110,7 @@ int main() {
     std::cout << "KVStore Benchmark\n";
     std::cout << "Shards=" << shards << " Threads=" << threads << " Ops/thread=" << ops_per_thread << "\n\n";
 
-    KVStore store(shards);
+    KVStore store(shards, EvictionType::None);
 
     benchmark_put(store, threads, ops_per_thread);
     benchmark_get(store, threads, ops_per_thread);

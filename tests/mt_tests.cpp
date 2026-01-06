@@ -4,20 +4,22 @@
 #include <thread>
 #include <vector>
 
-#include "../include/kv_store/kv_store.h"
+#include "kv_store/eviction/eviction_types.h"
+#include "kv_store/kv_store.h"
 
 using namespace kv_store;
 
 // Test 1: Concurrent Writes
 void test_concurrent_put() {
-    KVStore store;
+    KVStore store(16, EvictionType::None);
 
     const int num_threads = 8;
     const int writes_per_thread = 1000;
 
     auto writer = [&](int thread_id) {
         for (int i = 0; i < writes_per_thread; ++i) {
-            store.put("key_" + std::to_string(i), "value_from_thread_" + std::to_string(thread_id));
+            store.put("key_" + std::to_string(i), "value_from_thread_" + std::to_string(thread_id),
+                      std::chrono::seconds(0));  // no expiration
         }
     };
 
@@ -41,10 +43,10 @@ void test_concurrent_put() {
 
 // Test 2: Concurrent Reads + Writes
 void test_concurrent_get_and_put() {
-    KVStore store;
+    KVStore store(16, EvictionType::None);
 
     for (int i = 0; i < 1000; ++i) {
-        store.put("key_" + std::to_string(i), "initial");
+        store.put("key_" + std::to_string(i), "initial", std::chrono::seconds(0));
     }
 
     auto reader = [&]() {
@@ -55,7 +57,7 @@ void test_concurrent_get_and_put() {
 
     auto writer = [&]() {
         for (int i = 0; i < 1000; ++i) {
-            store.put("key_" + std::to_string(i), "updated");
+            store.put("key_" + std::to_string(i), "updated", std::chrono::seconds(0));
         }
     };
 
@@ -80,11 +82,11 @@ void test_concurrent_get_and_put() {
 
 // Test 3: Concurrent Erase + Access
 void test_concurrent_erase() {
-    KVStore store;
+    KVStore store(16, EvictionType::None);
 
     // Pre-fill store
     for (int i = 0; i < 1000; ++i) {
-        store.put("key_" + std::to_string(i), "value");
+        store.put("key_" + std::to_string(i), "value", std::chrono::seconds(0));
     }
 
     auto reader = [&]() {
