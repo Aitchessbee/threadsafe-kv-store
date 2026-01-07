@@ -11,7 +11,12 @@ using namespace kv_store;
 
 // Test 1: Concurrent Writes
 void test_concurrent_put() {
-    KVStore store(16, EvictionType::None);
+    KVStoreOptions options;
+
+    options.eviction = EvictionType::None;
+    options.num_shards = 16;
+
+    KVStore store(options);
 
     const int num_threads = 8;
     const int writes_per_thread = 1000;
@@ -43,7 +48,12 @@ void test_concurrent_put() {
 
 // Test 2: Concurrent Reads + Writes
 void test_concurrent_get_and_put() {
-    KVStore store(16, EvictionType::None);
+    KVStoreOptions options;
+
+    options.eviction = EvictionType::None;
+    options.num_shards = 16;
+
+    KVStore store(options);
 
     for (int i = 0; i < 1000; ++i) {
         store.put("key_" + std::to_string(i), "initial", std::chrono::seconds(0));
@@ -82,7 +92,12 @@ void test_concurrent_get_and_put() {
 
 // Test 3: Concurrent Erase + Access
 void test_concurrent_erase() {
-    KVStore store(16, EvictionType::None);
+    KVStoreOptions options;
+
+    options.eviction = EvictionType::None;
+    options.num_shards = 16;
+
+    KVStore store(options);
 
     // Pre-fill store
     for (int i = 0; i < 1000; ++i) {

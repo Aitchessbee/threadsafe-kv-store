@@ -110,7 +110,12 @@ int main() {
     std::cout << "KVStore Benchmark\n";
     std::cout << "Shards=" << shards << " Threads=" << threads << " Ops/thread=" << ops_per_thread << "\n\n";
 
-    KVStore store(shards, EvictionType::None);
+    KVStoreOptions options;
+
+    options.eviction = EvictionType::None;
+    options.num_shards = shards;
+
+    KVStore store(options);
 
     benchmark_put(store, threads, ops_per_thread);
     benchmark_get(store, threads, ops_per_thread);

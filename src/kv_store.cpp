@@ -2,19 +2,23 @@
 
 #include <functional>
 
-#include "../include/kv_store/eviction/eviction_policy.h"
-#include "../include/kv_store/eviction/no_eviction.h"
-#include "../include/kv_store/eviction/ttl_eviction.h"
+#include "kv_store/eviction/eviction_policy.h"
+#include "kv_store/eviction/lru_eviction.h"
+#include "kv_store/eviction/no_eviction.h"
+#include "kv_store/eviction/ttl_eviction.h"
 
 namespace kv_store {
 
-KVStore::KVStore(size_t num_shards, EvictionType evictionType) : num_shards_(num_shards), shards_(num_shards) {
-    switch (evictionType) {
+KVStore::KVStore(const KVStoreOptions& options) : num_shards_(options.num_shards), shards_(options.num_shards) {
+    switch (options.eviction) {
         case EvictionType::None:
             evictionPolicy_ = std::make_unique<NoEviction>();
             break;
         case EvictionType::TTL:
-            evictionPolicy_ = std::make_unique<TTLEviction>(*this);
+            evictionPolicy_ = std::make_unique<TTLEviction>(*this, options.ttl_scan_interval);
+            break;
+        case EvictionType::LRU:
+            evictionPolicy_ = std::make_unique<LRUEviction>(options.lru_capacity);
             break;
         default:
             throw std::invalid_argument("Unknown eviction type");
@@ -34,10 +38,16 @@ void KVStore::put(const std::string& key, const std::string& value, std::chrono:
 
     ValueEntry entry{value, expire_at};
 
-    std::unique_lock lock(shard.mutex);
-    shard.map[key] = std::move(entry);
+    {
+        std::unique_lock lock(shard.mutex);
+        shard.map[key] = std::move(entry);
+    }
 
-    evictionPolicy_->onPut(key);
+    std::optional<std::string> keyToRemove = evictionPolicy_->onPut(key);
+
+    if (keyToRemove.has_value()) {
+        erase(keyToRemove.value());
+    }
 }
 
 void KVStore::put(const std::string& key, const std::string& value, std::chrono::seconds ttl) {
@@ -49,63 +59,79 @@ void KVStore::put(const std::string& key, const std::string& value, std::chrono:
 std::pair<bool, std::string> KVStore::get(const std::string& key) {
     size_t shard_index = getShardIndex(key);
     Shard& shard = shards_[shard_index];
-
     const auto now = std::chrono::steady_clock::now();
+
+    std::string value;
+    bool hit = false;
 
     {
         std::shared_lock lock(shard.mutex);
         auto it = shard.map.find(key);
-
-        if (it == shard.map.end()) {
-            return {false, ""};
-        }
-
-        if (now <= it->second.expire_at) {
-            evictionPolicy_->onGet(key);
-            return {true, it->second.value};
+        if (it != shard.map.end() && now <= it->second.expire_at) {
+            value = it->second.value;
+            hit = true;
         }
     }
+
+    if (hit) {
+        evictionPolicy_->onGet(key);
+        return {true, value};
+    }
+
+    bool erased = false;
 
     {
-        std::unique_lock ulock(shard.mutex);
+        std::unique_lock lock(shard.mutex);
         auto it = shard.map.find(key);
-
-        if (it == shard.map.end()) {
-            return {false, ""};
-        }
-
-        if (now > it->second.expire_at) {
+        if (it != shard.map.end() && now > it->second.expire_at) {
             shard.map.erase(it);
-            return {false, ""};
-        } else {
-            evictionPolicy_->onGet(key);
-            return {true, it->second.value};
+            erased = true;
         }
     }
+
+    if (erased) {
+        evictionPolicy_->onErase(key);
+    }
+
+    return {false, ""};
 }
 
 void KVStore::erase(const std::string& key) {
     size_t shard_index = getShardIndex(key);
     Shard& shard = shards_[shard_index];
 
-    std::unique_lock lock(shard.mutex);
-    shard.map.erase(key);
+    bool erased = false;
 
-    evictionPolicy_->onErase(key);
+    {
+        std::unique_lock lock(shard.mutex);
+        erased = (shard.map.erase(key) > 0);
+    }
+
+    if (erased) {
+        evictionPolicy_->onErase(key);
+    }
 }
 
 void KVStore::removeExpiredKeys() {
-    for (auto& shard : shards_) {
-        std::unique_lock lock(shard.mutex);
-        const auto now = std::chrono::steady_clock::now();
+    const auto now = std::chrono::steady_clock::now();
 
-        for (auto it = shard.map.begin(); it != shard.map.end();) {
-            if (it->second.expire_at < now) {
-                evictionPolicy_->onErase(it->first);
-                it = shard.map.erase(it);
-            } else {
-                ++it;
+    for (auto& shard : shards_) {
+        std::vector<std::string> expired;
+
+        {
+            std::unique_lock lock(shard.mutex);
+            for (auto it = shard.map.begin(); it != shard.map.end();) {
+                if (it->second.expire_at < now) {
+                    expired.push_back(it->first);
+                    it = shard.map.erase(it);
+                } else {
+                    ++it;
+                }
             }
+        }
+
+        for (const auto& key : expired) {
+            evictionPolicy_->onErase(key);
         }
     }
 }

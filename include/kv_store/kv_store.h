@@ -14,9 +14,16 @@
 
 namespace kv_store {
 
+struct KVStoreOptions {
+    size_t num_shards = 16;
+    EvictionType eviction = EvictionType::None;
+    size_t lru_capacity = 10;
+    std::chrono::milliseconds ttl_scan_interval{1000};
+};
+
 class KVStore {
    public:
-    explicit KVStore(size_t num_shards = 16, EvictionType evictionType = EvictionType::None);
+    explicit KVStore(const KVStoreOptions& options);
 
     std::pair<bool, std::string> get(const std::string& key);
 

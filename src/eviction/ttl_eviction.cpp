@@ -6,7 +6,7 @@
 
 namespace kv_store {
 
-TTLEviction::TTLEviction(KVStore& store) : store_(store), running_(false) {
+TTLEviction::TTLEviction(KVStore& store, std::chrono::milliseconds ttl_interval) : store_(store), running_(false), ttl_interval_(ttl_interval) {
 }
 
 TTLEviction::~TTLEviction() {
@@ -34,7 +34,7 @@ void TTLEviction::stop() {
 void TTLEviction::backgroundThreadFunc() {
     while (running_) {
         store_.removeExpiredKeys();
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(ttl_interval_));
     }
 }
 
