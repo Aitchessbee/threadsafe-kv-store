@@ -39,7 +39,7 @@ git clone https://github.com/Aitchessbee/threadsafe-kv-store.git
 cd threadsafe-kv-store
 ```
 
-Build using CMake (requires C++17 or later):
+Build using CMake (requires C++20 or later):
 
 ```bash
 cmake -S . -B
