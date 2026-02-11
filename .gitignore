@@ -19,6 +19,7 @@ cmake_install.cmake
 *.so
 *.dylib
 *.exe
+*.bin
 basic_tests
 
 # =========================
