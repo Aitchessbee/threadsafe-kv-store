@@ -1,4 +1,5 @@
 #include <cassert>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -133,10 +134,51 @@ void test_concurrent_erase() {
     std::cout << "✓ Concurrent erase() test passed\n";
 }
 
+// Test 4: Snapshots
+void test_concurrent_snapshot() {
+    const std::string test_path = "concurrent_snapshot.bin";
+    std::filesystem::remove(test_path);
+
+    KVStoreOptions options;
+    options.num_shards = 4;
+    options.snapshot_path = test_path;
+    KVStore store(options);
+
+    std::atomic<bool> running{true};
+
+    // Thread 1: Constantly hammering the store with updates
+    auto writer = std::thread([&]() {
+        int i = 0;
+        while (running) {
+            store.put("key_" + std::to_string(i % 100), "val_" + std::to_string(i), std::chrono::seconds(0));
+            i++;
+        }
+    });
+
+    // Thread 2: Triggering snapshots during the chaos
+    try {
+        for (int i = 0; i < 5; ++i) {
+            store.saveSnapshot();
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Snapshot failed during concurrent writes: " << e.what() << std::endl;
+        assert(false);
+    }
+
+    running = false;
+    writer.join();
+
+    std::filesystem::remove(test_path);
+
+    std::cout << "✓ Concurrent snapshot test passed\n";
+}
+
 int main() {
     test_concurrent_put();
     test_concurrent_get_and_put();
     test_concurrent_erase();
+    test_concurrent_snapshot();
 
     std::cout << "\nAll multithreaded tests passed successfully!\n";
     return 0;

@@ -16,21 +16,25 @@ target_include_directories(ttl_eviction PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/inclu
 add_library(lru_eviction src/eviction/lru_eviction.cpp)
 target_include_directories(lru_eviction PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+add_library(snapshot_manager src/persistence/snapshot_manager.cpp)
+target_include_directories(snapshot_manager PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
 target_compile_options(kv_store PRIVATE -Wall -Wextra -Wpedantic)
 target_compile_options(ttl_eviction PRIVATE -Wall -Wextra -Wpedantic)
 target_compile_options(lru_eviction PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(snapshot_manager PRIVATE -Wall -Wextra -Wpedantic)
 
 add_executable(basic_tests tests/basic_tests.cpp)
 add_executable(mt_tests tests/mt_tests.cpp)
 
-target_link_libraries(basic_tests PRIVATE kv_store ttl_eviction lru_eviction)
-target_link_libraries(mt_tests PRIVATE kv_store ttl_eviction lru_eviction Threads::Threads)
+target_link_libraries(basic_tests PRIVATE kv_store ttl_eviction lru_eviction snapshot_manager)
+target_link_libraries(mt_tests PRIVATE kv_store ttl_eviction lru_eviction snapshot_manager Threads::Threads)
 
 target_compile_options(basic_tests PRIVATE -Wall -Wextra -Wpedantic)
 target_compile_options(mt_tests PRIVATE -Wall -Wextra -Wpedantic)
 
 add_executable(benchmark benchmarks/benchmark.cpp)
-target_link_libraries(benchmark PRIVATE kv_store ttl_eviction lru_eviction Threads::Threads)
+target_link_libraries(benchmark PRIVATE kv_store ttl_eviction lru_eviction snapshot_manager Threads::Threads)
 target_compile_options(benchmark PRIVATE -Wall -Wextra -Wpedantic)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")

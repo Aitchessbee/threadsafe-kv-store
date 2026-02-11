@@ -11,6 +11,7 @@
 
 #include "eviction/eviction_policy.h"
 #include "eviction/eviction_types.h"
+#include "persistence/snapshot_manager.h"
 
 namespace kv_store {
 
@@ -19,6 +20,7 @@ struct KVStoreOptions {
     EvictionType eviction = EvictionType::None;
     size_t lru_capacity = 10;
     std::chrono::milliseconds ttl_scan_interval{1000};
+    std::string snapshot_path;
 };
 
 class KVStore {
@@ -27,7 +29,7 @@ class KVStore {
 
     std::pair<bool, std::string> get(const std::string& key);
 
-    void put(const std::string& key, const std::string& value, std::chrono::steady_clock::time_point expire_at);
+    void put(const std::string& key, const std::string& value, std::chrono::system_clock::time_point expire_at);
 
     // ttl <= 0 means the key never expires
     void put(const std::string& key, const std::string& value, std::chrono::seconds ttl);
@@ -36,10 +38,14 @@ class KVStore {
 
     void removeExpiredKeys();
 
+    void saveSnapshot();
+
+    void loadSnapshot();
+
    private:
     struct ValueEntry {
         std::string value;
-        std::chrono::steady_clock::time_point expire_at;
+        std::chrono::system_clock::time_point expire_at;
     };
 
     struct Shard {
@@ -51,6 +57,7 @@ class KVStore {
     std::vector<Shard> shards_;
 
     std::unique_ptr<EvictionPolicy> evictionPolicy_;
+    std::unique_ptr<SnapshotManager> snapshotManager_;
 
     size_t getShardIndex(const std::string& key) const noexcept;
 };

@@ -1,4 +1,5 @@
 #include <cassert>
+#include <filesystem>
 #include <iostream>
 #include <thread>
 
@@ -7,9 +8,6 @@
 using namespace kv_store;
 
 int main() {
-    // =========================
-    // TTL Eviction Tests
-    // =========================
     {
         KVStoreOptions options;
         options.num_shards = 16;
@@ -107,6 +105,38 @@ int main() {
     }
 
     std::cout << "LRU eviction tests passed!\n";
+
+    {
+        const std::string test_path = "snapshot.bin";
+        std::filesystem::remove(test_path);
+
+        KVStoreOptions options;
+        options.num_shards = 4;
+        options.snapshot_path = test_path;
+        options.eviction = EvictionType::None;
+
+        {
+            KVStore store(options);
+            store.put("k1", "v1", std::chrono::seconds(0));
+            store.put("k2", "v2", std::chrono::seconds(0));
+            store.saveSnapshot();
+        }
+
+        {
+            KVStore store2(options);
+            store2.loadSnapshot();
+
+            auto [f1, v1] = store2.get("k1");
+            assert(f1 && v1 == "v1");
+
+            auto [f2, v2] = store2.get("k2");
+            assert(f2 && v2 == "v2");
+        }
+
+        std::filesystem::remove(test_path);
+        std::cout << "Snapshot persistence tests passed!\n";
+    }
+
     std::cout << "All single-threaded tests passed!\n";
 
     return 0;

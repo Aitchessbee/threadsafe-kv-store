@@ -25,6 +25,8 @@ KVStore::KVStore(const KVStoreOptions& options) : num_shards_(options.num_shards
     }
 
     evictionPolicy_->start();
+
+    snapshotManager_ = std::make_unique<SnapshotManager>(options.snapshot_path);
 }
 
 size_t KVStore::getShardIndex(const std::string& key) const noexcept {
@@ -32,7 +34,7 @@ size_t KVStore::getShardIndex(const std::string& key) const noexcept {
     return hasher(key) % num_shards_;
 }
 
-void KVStore::put(const std::string& key, const std::string& value, std::chrono::steady_clock::time_point expire_at) {
+void KVStore::put(const std::string& key, const std::string& value, std::chrono::system_clock::time_point expire_at) {
     size_t shard_index = getShardIndex(key);
     Shard& shard = shards_[shard_index];
 
@@ -51,7 +53,7 @@ void KVStore::put(const std::string& key, const std::string& value, std::chrono:
 }
 
 void KVStore::put(const std::string& key, const std::string& value, std::chrono::seconds ttl) {
-    const auto expire_at = (ttl.count() > 0) ? std::chrono::steady_clock::now() + ttl : std::chrono::steady_clock::time_point::max();
+    const auto expire_at = (ttl.count() > 0) ? std::chrono::system_clock::now() + ttl : std::chrono::system_clock::time_point::max();
 
     put(key, value, expire_at);
 }
@@ -59,7 +61,7 @@ void KVStore::put(const std::string& key, const std::string& value, std::chrono:
 std::pair<bool, std::string> KVStore::get(const std::string& key) {
     size_t shard_index = getShardIndex(key);
     Shard& shard = shards_[shard_index];
-    const auto now = std::chrono::steady_clock::now();
+    const auto now = std::chrono::system_clock::now();
 
     std::string value;
     bool hit = false;
@@ -113,7 +115,7 @@ void KVStore::erase(const std::string& key) {
 }
 
 void KVStore::removeExpiredKeys() {
-    const auto now = std::chrono::steady_clock::now();
+    const auto now = std::chrono::system_clock::now();
 
     for (auto& shard : shards_) {
         std::vector<std::string> expired;
@@ -133,6 +135,28 @@ void KVStore::removeExpiredKeys() {
         for (const auto& key : expired) {
             evictionPolicy_->onErase(key);
         }
+    }
+}
+
+void KVStore::saveSnapshot() {
+    std::vector<SnapshotEntry> entries;
+
+    for (auto& shard : shards_) {
+        std::shared_lock lock(shard.mutex);
+
+        for (const auto& [key, valueEntry] : shard.map) {
+            entries.emplace_back(key, valueEntry.value, valueEntry.expire_at);
+        }
+    }
+
+    snapshotManager_->saveSnapshot(entries);
+}
+
+void KVStore::loadSnapshot() {
+    std::vector<SnapshotEntry> entries = snapshotManager_->loadSnapshot();
+
+    for (auto& entry : entries) {
+        put(entry.key, entry.value, entry.expires_at);
     }
 }
 
