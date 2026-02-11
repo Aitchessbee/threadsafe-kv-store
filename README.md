@@ -18,6 +18,10 @@ A **high-performance, multithreaded in-memory key-value store** with pluggable e
   - **TTL**: Time-to-live expiration for keys
   - **LRU**: Least Recently Used eviction with configurable capacity
 
+- **Persistence Support**
+  
+  - Save and load the store state to/from binary snapshots for data durability across restarts.
+
 - **Flexible Key Expiration**
 
   - TTL-based expiration per key
@@ -42,7 +46,7 @@ cd threadsafe-kv-store
 Build using CMake (requires C++20 or later):
 
 ```bash
-cmake -S . -B
+cmake -S . -B build
 cmake --build build
 ```
 
@@ -77,56 +81,51 @@ int main() {
 
 ---
 
-### LRU Eviction Example
+### Persistence (Snapshot) Example
 
 ```cpp
 KVStoreOptions options;
-options.num_shards = 4;
-options.eviction = EvictionType::LRU;
-options.lru_capacity = 100;  // maximum 100 keys
+options.snapshot_path = "store.bin";
 
 KVStore store(options);
+store.put("session_id", "xyz123", std::chrono::hours(1));
 
-store.put("a", "1", std::chrono::seconds(0));
-store.put("b", "2", std::chrono::seconds(0));
+store.saveSnapshot();
 
-// Access "a" to make it most recently used
-store.get("a");
+store.loadSnapshot();
 
-// Insert "c", "b" may get evicted if capacity exceeded
-store.put("c", "3", std::chrono::seconds(0));
 ```
 
 ---
 
-### TTL Eviction Example
+### Interactive CLI
 
-```cpp
-KVStoreOptions options;
-options.num_shards = 8;
-options.eviction = EvictionType::TTL;
-options.ttl_scan_interval = std::chrono::milliseconds(500);
+The project includes a CLI for manual interaction:
 
-KVStore store(options);
+```bash
+./build/kv_store_cli
+> put mykey myvalue 60
+OK
+> get mykey
+"myvalue"
+> save
+Snapshot saved to store.bin
 
-// Key expires after 2 seconds
-store.put("temp", "value", std::chrono::seconds(2));
-
-// Key never expires if TTL = 0
-store.put("permanent", "value", std::chrono::seconds(0));
 ```
 
 ---
 
 ## API Overview
 
-| Method                 | Description                                                             |
-| ---------------------- | ----------------------------------------------------------------------- |
-| `put(key, value, ttl)` | Inserts or updates a key with optional TTL                              |
-| `get(key)`             | Retrieves a key, updating recency for LRU                               |
-| `erase(key)`           | Removes a key from the store                                            |
-| `removeExpiredKeys()`  | Manually clean up expired keys                                          |
-| `KVStoreOptions`       | Configure number of shards, eviction policy, TTL interval, LRU capacity |
+| Method                 | Description                                                    |
+| ---------------------- | -------------------------------------------------------------- |
+| `put(key, value, ttl)` | Inserts or updates a key with optional TTL                     |
+| `get(key)`             | Retrieves a key, updating recency for LRU                      |
+| `erase(key)`           | Removes a key from the store                                   |
+| `saveSnapshot()`       | Persists current data to a binary file                         |
+| `loadSnapshot()`       | Restores data from the snapshot file                           |
+| `removeExpiredKeys()`  | Manually clean up expired keys                                 |
+| `KVStoreOptions`       | Configure shards, eviction, snapshot path, and capacity limits |
 
 ---
 
@@ -134,6 +133,7 @@ store.put("permanent", "value", std::chrono::seconds(0));
 
 - `put`, `get`, and `erase` are fully **thread-safe**
 - Shard-level locks prevent contention, allowing multiple threads to access **different shards concurrently**
+- `saveSnapshot` uses shared locks to allow concurrent reads while serializing data
 - Eviction notifications happen **outside shard locks** to avoid deadlocks
 
 ---
@@ -150,6 +150,7 @@ cmake --build build
 
 - Single-threaded TTL and LRU behavior are validated
 - Multi-threaded access is safe and deadlock-free
+- Concurrent snapshotting during active writes is validated in `mt_tests`
 
 ---
 
@@ -190,9 +191,10 @@ cmake --build build
 
 1. **Sharded Storage**: Each shard has its own lock, reducing contention.
 2. **Eviction Policies**: Encapsulated as pluggable classes (`NoEviction`, `LRUEviction`, `TTLEviction`).
-3. **Optional TTL**: Keys can expire automatically or be cleaned up manually.
-4. **Optional LRU**: Keys are evicted based on recency when capacity is reached.
-5. **Thread-Safe Eviction**: `onPut`, `onGet`, and `onErase` are safe across threads.
+3. **Binary Serialization**: `SnapshotManager` uses a length-prefixed binary format for efficient disk I/O.
+4. **Optional TTL**: Keys can expire automatically or be cleaned up manually.
+5. **Optional LRU**: Keys are evicted based on recency when capacity is reached.
+6. **Thread-Safe Eviction**: `onPut`, `onGet`, and `onErase` are safe across threads.
 
 ---
 
@@ -201,7 +203,7 @@ cmake --build build
 Contributions are welcome!
 
 - Add new eviction policies
-- Add performance benchmarks
+- Improve performance benchmarks
 - Improve multithreaded stress tests
 
 Please fork the repo and submit a pull request.
